@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -e
+
+ORG="${1}"
+
+if [[ ! $ORG ]]; then
+	echo "Usage: ${0##*/} gh_org_name"
+	exit 1
+fi
+
+QUERY='
+query ($org: String!, $endCursor: String) {
+  organization(login: $org) {
+    membersWithRole(first: 100, after: $endCursor) {
+      edges {
+        node {
+          login
+          name
+          email
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+'
+
+TEMPLATE='
+  {{- range .data.organization.membersWithRole.edges -}}
+    {{- tablerow (autocolor "green" .node.login) .node.name (autocolor "yellow+h" .node.email) "" -}}
+  {{- end -}}
+'
+
+exec gh api graphql --paginate -F org="$ORG" -f query="${QUERY}" --template="${TEMPLATE}"
